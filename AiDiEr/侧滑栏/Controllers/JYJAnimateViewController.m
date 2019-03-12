@@ -19,6 +19,7 @@ static CGFloat const animationTime = 0.4;
 @property (nonatomic, weak) UIViewController *leftVc;
 /** hasShow */
 @property (nonatomic, assign) BOOL hasShow;
+
 @end
 
 @implementation JYJAnimateViewController

@@ -14,7 +14,6 @@ typedef void(^netStateBlock)(NSInteger netState);
 
 @interface SZKNetWorkUtils : NSObject
 
-@interface SZKNetWorkUtils : NSObject
 
 /**
  *  网络监测
