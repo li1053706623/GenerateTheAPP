@@ -1,0 +1,67 @@
+//
+//  PrefixHeader.pch
+//  AiDiEr
+//
+//  Created by Apple on 2019/3/11.
+//  Copyright © 2019 Apple. All rights reserved.
+//
+
+#ifndef PrefixHeader_pch
+#define PrefixHeader_pch
+
+// Include any system framework and library headers here that should be included in all compilation units.
+// You will also need to set the Prefix Header build setting of one or more of your targets to reference this file.
+
+#import "ConfigData.h"
+#import <UIImageView+WebCache.h>
+#import <AFNetworking.h>
+#import <ShareSDK/ShareSDK.h>
+#import <ShareSDKUI/ShareSDK+SSUI.h>
+#import <arpa/inet.h>
+#import <ifaddrs.h>
+#import <netdb.h>
+#import <sys/socket.h>
+#import <netinet/in.h>
+#import <SystemConfiguration/SystemConfiguration.h>
+#import <AFNetworkReachabilityManager.h>
+#import <WebKit/WebKit.h>
+#import <LYEmptyView.h>
+#import "RefreshLoadingView.h"
+#import "PopMenu.h"
+#import "UIColor+ColorChange.h"
+#import <POP.h>
+#import <Masonry.h>
+#import "AppDelegate.h"
+#import "UIViewController+Category.h"
+#import <SPButton.h>
+#import <UIButton+WebCache.h>
+#import "UIView+YSAddClickBlock.h"
+#import <MJRefresh.h>
+#import "FSActionSheet.h"
+#import "URLViewController.h"
+#import "UIImage+InsetEdge.h"
+#import "JYJAnimateViewController.h"
+#import "DIYScanViewController.h"
+#import "UINavigationBar+handle.h"
+#import <YJProgressHUD.h>
+#import "AboutUSViewController.h"
+#import "MainBottomView.h"
+#import "UIButton+Block.h"
+#import "EwenCopyLabel.h"
+#import "SZKNetWorkUtils.h"
+
+
+#define QQAppId  @"1107997335"
+#define QQappkey @"uSx8gzm0kLLicnlB"
+#define WXAppId  @"wxd5a1d936ec1b1cbd"
+#define WXappSecret @"66473b3023069793d86c04575e734a61"
+#define SCREEN_WIDTH [UIScreen mainScreen].bounds.size.width
+#define SCREEN_HEIGHT [UIScreen mainScreen].bounds.size.height
+#define first @"firstApp"
+#define iconfirst @"firstIcon"
+#define JPUSHAPPKEY @"e27330c1df1f293b8f00e3cb"
+#define defaults [NSUserDefaults standardUserDefaults]
+#define dataDict [defaults objectForKey:@"dataDict"]
+#define MainColor(r, g, b) [UIColor colorWithRed:(r)/255.0 green:(g)/255.0 blue:(b)/255.0 alpha:1.0]
+
+#endif /* PrefixHeader_pch */
