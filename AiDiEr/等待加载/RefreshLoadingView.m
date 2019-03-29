@@ -10,7 +10,7 @@
 
 @interface RefreshLoadingView ()
 
-@property (nonatomic, strong) UIImageView  *circleView;
+
 
 @property(nonatomic,strong)UILabel *loadingLabel;
 
@@ -69,7 +69,7 @@
 -(UIImageView *)circleView{
     if (!_circleView) {
         _circleView                 = [[UIImageView alloc] init];
-        _circleView.image           = [UIImage imageNamed:@"loading"];
+//        _circleView.image           = [UIImage imageNamed:@"loading"];
 //        _circleView.center          = self.center;
     }
     return _circleView;

@@ -12,6 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface MainViewController : UIViewController
 
+-(void)mainloadshare;
 @end
 
 NS_ASSUME_NONNULL_END

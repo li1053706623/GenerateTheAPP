@@ -53,162 +53,166 @@
 }
 
 
--(void)GetFunctionWithfunctionSender:(SPButton *)sender WithfunctionId:(NSInteger)functionId{
-    NSInteger functionTag;
-    if (sender.tag == 0) {
-        functionTag = functionId;
-    }else{
-        functionTag = sender.tag;
-    }
-
-
-    /**
-     1：分享功能
-     2：刷新
-     3：前进
-     4：后退
-     5：打电话-联系客服
-     6：浏览器打开网页
-     7：打开网站连接
-     8:关于我们
-     9:清除缓存
-     10:打开左边栏---左侧栏按钮不带这个功能
-     11:扫一扫
-     12:回到主页
-     13关闭app    只有titlebar按钮以及主页底部菜单按钮可以打开这个功能
-     */
-
-
-    switch (functionTag) {
-        case 1:
-            [self loadshare];
-            break;
-        case 2:
-            //            [self loadfresh];
-            break;
-        case 3:
-
-            break;
-
-        case 4:
-
-            break;
-        case 5:
-            [self dialPhoneNumber];
-            break;
-        case 6:
-        {
-            if (@available(iOS 10.0, *)) {
-                [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"http://www.baidu.com"] options:@{} completionHandler:nil];
-            } else {
-                // Fallback on earlier versions
-            }
-            break;
-        }
-        case 7:
-        {
-            URLViewController *urlVC = [[URLViewController alloc]init];
-            [self.navigationController pushViewController:urlVC animated:YES];
-        }
-            break;
-        case 8:
-            [self aboutus];
-            break;
-        case 9:
-            [self folderSize];
-
-            break;
-        case 10:
-        {
-            JYJAnimateViewController *vc = [[JYJAnimateViewController alloc] init];
-
-            vc.view.backgroundColor = [UIColor clearColor];
-            [self addChildViewController:vc];
-            [self.view addSubview:vc.view];
-        }
-            break;
-        case 11:
-        {
-            DIYScanViewController *scanvc = [[DIYScanViewController alloc] init];
-            [self.navigationController pushViewController:scanvc animated:YES];
-        }
-            break;
-        case 12:
-
-            break;
-
-        case 13:
-        {
-            [self exitApplication];
-        }
-
-            break;
-        default:
-            break;
-    }
-
-    //    NSLog(@"----%ld",functionTag);
-}
+//-(void)GetFunctionWithfunctionSender:(SPButton *)sender WithfunctionId:(NSInteger)functionId{
+//    NSInteger functionTag;
+//    if (sender.tag == 0) {
+//        functionTag = functionId;
+//    }else{
+//        functionTag = sender.tag;
+//    }
+//
+//
+//    /**
+//     1：分享功能
+//     2：刷新
+//     3：前进
+//     4：后退
+//     5：打电话-联系客服
+//     6：浏览器打开网页
+//     7：打开网站连接
+//     8:关于我们
+//     9:清除缓存
+//     10:打开左边栏---左侧栏按钮不带这个功能
+//     11:扫一扫
+//     12:回到主页
+//     13关闭app    只有titlebar按钮以及主页底部菜单按钮可以打开这个功能
+//     */
+//
+//
+//    switch (functionTag) {
+//        case 1:
+//            [self loadshare];
+//            break;
+//        case 2:
+//            //            [self loadfresh];
+//            break;
+//        case 3:
+//
+//            break;
+//
+//        case 4:
+//
+//            break;
+//        case 5:
+//            [self dialPhoneNumber];
+//            break;
+//        case 6:
+//        {
+//            if (@available(iOS 10.0, *)) {
+//                [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"http://www.baidu.com"] options:@{} completionHandler:nil];
+//            } else {
+//                // Fallback on earlier versions
+//            }
+//            break;
+//        }
+//        case 7:
+//        {
+//            URLViewController *urlVC = [[URLViewController alloc]init];
+//            [self.navigationController pushViewController:urlVC animated:YES];
+//        }
+//            break;
+//        case 8:
+//            [self aboutus];
+//            break;
+//        case 9:
+//            [self folderSize];
+//
+//            break;
+//        case 10:
+//        {
+//            JYJAnimateViewController *vc = [[JYJAnimateViewController alloc] init];
+//
+//            vc.view.backgroundColor = [UIColor clearColor];
+//            [self addChildViewController:vc];
+//            [self.view addSubview:vc.view];
+//        }
+//            break;
+//        case 11:
+//        {
+//            DIYScanViewController *scanvc = [[DIYScanViewController alloc] init];
+//            [self.navigationController pushViewController:scanvc animated:YES];
+//        }
+//            break;
+//        case 12:
+//
+//            break;
+//
+//        case 13:
+//        {
+//            [self exitApplication];
+//        }
+//
+//            break;
+//        default:
+//            break;
+//    }
+//
+//    //    NSLog(@"----%ld",functionTag);
+//}
 
 #pragma mark---分享
 -(void)loadshare{
     
     
     
-    if ([[dataDict objectForKey:@"QQradio"]integerValue] == 1 ||
-        [[dataDict objectForKey:@"wechatRadio"]integerValue] == 1 ||
-        [[dataDict objectForKey:@"messages"]integerValue] == 1) {
-        NSMutableDictionary *shareParams = [NSMutableDictionary dictionary];
-        [shareParams SSDKSetupShareParamsByText:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareContent"]]
-                                         images:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareImage"]]
-                                            url:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareURL"]]]
-                                          title:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareTitle"]]
-                                           type:SSDKContentTypeAuto];
-        [ShareSDK showShareActionSheet:nil customItems:[NSArray arrayWithObjects:
-                                                        @(SSDKPlatformSubTypeQQFriend),// QQ好友
-                                                        @(SSDKPlatformSubTypeQZone),//QQ空间
-                                                        @(SSDKPlatformSubTypeWechatSession), //微信好友
-                                                        @(SSDKPlatformSubTypeWechatTimeline), //微信朋友圈
-                                                        @(SSDKPlatformTypeSMS) // 短信
-                                                        ,nil]
-                           shareParams:shareParams sheetConfiguration:nil onStateChanged:^(SSDKResponseState state, SSDKPlatformType platformType, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error, BOOL end) {
-            switch (state) {
-                case SSDKResponseStateSuccess:
-                {
-                    [self showAlertViewContrllerWithMessage:@"分享成功"];
-                }
-
-                    break;
-                case SSDKResponseStateFail:
-                {
-                    [self showAlertViewContrllerWithMessage:@"分享失败"];
-                }
-                    break;
-
-                default:
-                    break;
-            }
-        }];
-    }else{
-        [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
-    }
+//    if ([[dataDict objectForKey:@"QQradio"]integerValue] == 1 ||
+//        [[dataDict objectForKey:@"wechatRadio"]integerValue] == 1 ||
+//        [[dataDict objectForKey:@"messages"]integerValue] == 1) {
+//        NSMutableDictionary *shareParams = [NSMutableDictionary dictionary];
+//        [shareParams SSDKSetupShareParamsByText:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareContent"]]
+//                                         images:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareImage"]]
+//                                            url:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareURL"]]]
+//                                          title:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareTitle"]]
+//                                           type:SSDKContentTypeAuto];
+//        [ShareSDK showShareActionSheet:nil customItems:[NSArray arrayWithObjects:
+//                                                        @(SSDKPlatformSubTypeQQFriend),// QQ好友
+//                                                        @(SSDKPlatformSubTypeQZone),//QQ空间
+//                                                        @(SSDKPlatformSubTypeWechatSession), //微信好友
+//                                                        @(SSDKPlatformSubTypeWechatTimeline), //微信朋友圈
+//                                                        @(SSDKPlatformTypeSMS) // 短信
+//                                                        ,nil]
+//                           shareParams:shareParams sheetConfiguration:nil onStateChanged:^(SSDKResponseState state, SSDKPlatformType platformType, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error, BOOL end) {
+//            switch (state) {
+//                case SSDKResponseStateSuccess:
+//                {
+//                    [self showAlertViewContrllerWithMessage:@"分享成功"];
+//                }
+//
+//                    break;
+//                case SSDKResponseStateFail:
+//                {
+//                    [self showAlertViewContrllerWithMessage:@"分享失败"];
+//                }
+//                    break;
+//
+//                default:
+//                    break;
+//            }
+//        }];
+//    }else{
+//        [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
+//    }
    
     
     
 }
 
-//-(void)loadfresh{
-//    self.webview.scrollView.mj_header = [MJRefreshHeader headerWithRefreshingBlock:^{
-//        [self.webview reload];
-//        [self.webview.scrollView.mj_header endRefreshing];
-//    }];
-//}
 -(void)dialPhoneNumber{
     
-    NSMutableString *str = [[NSMutableString alloc]initWithFormat:@"tel:%@",@"0371-55175089"];
-    WKWebView *callwebview = [[WKWebView alloc]init];
-    [callwebview loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:str]]];
-    [self.view addSubview:callwebview];
+    NSString *telephoneNumber= [dataDict objectForKey:@"phonenuber"];
+    NSMutableString * str=[[NSMutableString alloc] initWithFormat:@"tel:%@",telephoneNumber];
+    UIApplication *applaction = [UIApplication sharedApplication];
+    NSURL *URL = [NSURL URLWithString:str];
+    if (@available(iOS 10.0, *)) {
+        [applaction openURL:URL options:@{} completionHandler:^(BOOL success) {
+            if (success == NO) {
+//                [YJProgressHUD showMessage:@"呼叫取消" inView:self.view afterDelayTime:2];
+            }
+        }];
+    } else {
+        // Fallback on earlier versions
+    }
+    
 }
 -(void)aboutus{
     
@@ -243,7 +247,7 @@
             if ([[NSFileManager defaultManager]fileExistsAtPath:path]) {
                 BOOL isRemove = [[NSFileManager defaultManager]removeItemAtPath:path error:&error];
                 if (isRemove) {
-                    [YJProgressHUD showMessage:@"清除成功" inView:self.view];
+                    [YJProgressHUD showMessage:@"报告主人，您的压力已经清除完毕，现在可以愉快地使用了!" inView:self.view];
                     [self folderSize];
                 }else{
                     [YJProgressHUD showMessage:@"清除失败" inView:self.view];
@@ -287,29 +291,6 @@
         return [urlTest evaluateWithObject:url];
 }
 
--(void)GetUPBottomView{
-    if ([[dataDict objectForKey:@"menuBarRadio"]integerValue] !=0) {
-        __weak __typeof__(self) weakSelf = self;
-        MainBottomView *bottomView = [[MainBottomView alloc]init];
-        bottomView.frame = CGRectMake(0, SCREEN_HEIGHT - [self mTabbarHeight] , SCREEN_WIDTH, [self mTabbarHeight]);
-       
-        if (@available(iOS 11.0, *)) {
-            bottomView.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"menubarBgc"]]];
-        } else {
-            // Fallback on earlier versions
-        }
-        
-        bottomView.myBlock = ^(SPButton * _Nonnull button) {
-            [weakSelf GetFunctionWithfunctionSender:button WithfunctionId:0];
-        };
-        
-        [UIView setViewBorder:bottomView color:[UIColor colorWithHexString:@"#C0C0C0"] border:0.5f type:UIViewBorderLineTypeTop];
-        
-        [self.view addSubview:bottomView];
-    }
-    
-}
-
 #pragma mark---强制退出app
 - (void)exitApplication{
      AppDelegate *delegate  = (AppDelegate *)[UIApplication sharedApplication].delegate;
@@ -339,28 +320,6 @@
     }];
 }
 
--(void)GetUPNavigationView{
-    MainNavigationBarView *barView = [[MainNavigationBarView alloc]init];
-    barView.frame = CGRectMake(0, 0, SCREEN_WIDTH, [self mNavigationbarHeight]);
-    barView.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"navbarBgc"]]];
-    
-    [UIView setViewBorder:barView color:[UIColor colorWithHexString:@"#C0C0C0"] border:0.5f type:UIViewBorderLineTypeBottom];
-        /**
-         导航栏左右按钮添加点击事件
-         */
-         __weak typeof(self)weakSelf = self;
-    
-        [barView.leftButton addAcionBlock:^(UIButton * _Nonnull button) {
-    
-            SPButton *spButton = (SPButton *)button;
-            [weakSelf GetFunctionWithfunctionSender:spButton WithfunctionId:0];
-        }];
-    
-        [barView.rightButton addAcionBlock:^(UIButton * _Nonnull button) {
-            SPButton *spButton = (SPButton *)button;
-            [weakSelf GetFunctionWithfunctionSender:spButton WithfunctionId:0];
-        }];
-    [self.view addSubview:barView];
-}
+
 
 @end

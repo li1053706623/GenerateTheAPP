@@ -54,6 +54,7 @@
 - (void)setupSubviews {
     /** 1.图片 */
     UIImageView *iconView = [[UIImageView alloc] init];
+    iconView.contentMode = UIViewContentModeScaleAspectFit;
     [self.contentView addSubview:iconView];
     self.iconView = iconView;
     
@@ -112,13 +113,22 @@
     CGFloat subtitleX = CGRectGetMinX(self.arrowView.frame) - 10 - subtitleW;
     CGFloat subtitleY = 0;
     CGFloat subtitleH = contentH;
-    self.subtitle.frame = CGRectMake(subtitleX, subtitleY, subtitleW, subtitleH);    
+    self.subtitle.frame = CGRectMake(subtitleX, subtitleY, subtitleW, subtitleH);
+    
+//    NSLog(@"----%@",self.contentView.superview.superview);
 }
 
 - (void)setItem:(JYJCommenItem *)item {
     _item = item;
 //    self.iconView.image = [UIImage imageNamed:item.icon];
-    [self.iconView sd_setImageWithURL:[NSURL URLWithString:item.icon]];
+    [self.iconView sd_setImageWithURL:[NSURL URLWithString:item.icon] completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+        /** 缓存image size */
+        [XHWebImageAutoSize storeImageSize:image forURL:imageURL completed:^(BOOL result) {
+            /** reload  */
+            if(result) [(UITableView *)self.contentView.superview.superview  xh_reloadDataForURL:imageURL];
+        }];
+    }];
+
     self.nameLabel.text = item.title;
     self.subtitle.text = item.subtitle;
 }

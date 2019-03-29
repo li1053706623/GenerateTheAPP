@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+</head>
+<body>
+
+<p>测试Android WebView 与 Javascript 交互</p>
+<input id="name_input" class="inputStyle" type="text" value="12345555"/>
+<!--<a class="rect" onclick="sendInfoToJava()">JS调用Java</a>-->
+<img src="">
+<script>
+window.onload = initInfoToJava();
+function initInfoToJava(){
+changeTitleBar();
+changeRefreshImg();
+changeBottomMenu();
+changeLeftMenu();
+changeOrientation();
+saveLoginInfo();
+  }
+    //调用android程序中的方法，并传递参数   修改titlebar
+    function changeTitleBar(){
+  var leftText={"navbarBgc":"#FFFFFF",  "navbarSelect":10, "navbarLIco":"http://test.qingdabao.com/static/home/images/icon/logo/logo10.png",  "navbarRsele":2, "navRIcon":"https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48"};
+  window.webkit.messageHandlers.changeTitleBar.postMessage({body:leftText});
+  }
+     //修改下拉刷新的bg
+    function changeRefreshImg(){
+    var refreshImg="http://test.qingdabao.com/static/home/images/icon/logo/logo10.png";
+    window.webkit.messageHandlers.changeRefreshImg.postMessage({body:refreshImg});
+  }
+
+     //修改底部菜单的按钮
+    function changeBottomMenu(){
+    var bottomlist={"menubarBgc": "#000000", "menubarStyle": 0, "menubarFun": [9, 10,1,11], "menName": ["清缓存","左侧栏","分享","扫一扫"], "menuDefauinput": ["https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "http://test.qingdabao.com/static/home/images/icon/logo/logo10.png", "https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "http://test.qingdabao.com/static/home/images/icon/logo/logo10.png"],"menuTitleColorNormal": "#808080", "menuTitleColorSelect": "#000000"};
+    window.webkit.messageHandlers.changeBottomMenu.postMessage({body:bottomlist});
+  }
+
+
+     //修改左菜单的按钮
+    function changeLeftMenu(){
+    var sildelist={"slidebarAPI": 1, "slideBgc": "#808080", "slideType": 0, "slidefun": [9,7,8,1], "slibarName": ["清缓存",  "打开网页", "关于我们","分享"], "slideIcon": ["https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48","http://test.qingdabao.com/static/home/images/icon/logo/logo10.png"]};
+    window.webkit.messageHandlers.changeLeftMenu.postMessage({body:sildelist});
+  }
+
+     //设置横竖屏开关
+    function changeOrientation(){
+    var orientation=1;
+    window.webkit.messageHandlers.changeOrientation.postMessage({body:orientation});
+
+  }
+
+   function saveLoginInfo(){
+       var saveLoginInfo = {"name":"wll","password":"123456"};
+    window.webkit.messageHandlers.saveLoginInfo.postMessage({body:saveLoginInfo});
+    
+  }
+
+</script>
+</body>
+</html>

@@ -20,17 +20,12 @@
 
 -(void)setUI{
    
-//     self.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"menubarBgc"]]];
-    
-//    self.backgroundColor = [UIColor redColor];
-//    UIViewController *vc = [[UIViewController alloc]init];
-    
     NSInteger number = [[dataDict objectForKey:@"menubarFun"]count];
-    CGFloat width = 30.f; // 每个功能按钮之间的间隙
+    CGFloat width = 55.f; // 每个功能按钮之间的间隙
     CGFloat gap = 20.f; // 第一个与最后一个按钮距离屏幕的距离
     CGFloat space = (SCREEN_WIDTH - number * width - gap * 2) / (number - 1);
     for (NSInteger index = 0; index < number; index++) {
-        CGRect frame = CGRectMake(index * (width + space) + gap, 10, width, width);
+        CGRect frame = CGRectMake(index * (width + space) + gap, 10, width, 25);
         SPButton *button = [[SPButton alloc]initWithImagePosition:SPButtonImagePositionTop];
         button.frame = frame;
         
@@ -39,29 +34,30 @@
         [button.imageView setContentMode:UIViewContentModeScaleAspectFit];
         [button setTitle:[NSString stringWithFormat:@"%@",[[dataDict objectForKey:@"menName"]objectAtIndex:index]] forState:UIControlStateNormal];
         [button setTitleColor:[UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"menuTitleColorNormal"]]] forState:UIControlStateNormal];
-        [button setTitleColor:[UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"menuTitleColorSelect"]]] forState:UIControlStateSelected];
         [button sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[[dataDict objectForKey:@"menuDefauinput"]objectAtIndex:index]]] forState:UIControlStateNormal placeholderImage:[UIImage imageNamed:@"home"] completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
-            button.imageView.image = [weakSelf ct_imageFromImage:image inRect:button.frame];
-        }];;
-        [button sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[[dataDict objectForKey:@"menuSeleinput"]objectAtIndex:index]]] forState:UIControlStateSelected];
+            
+            
+           button.imageView.image = [weakSelf ct_imageFromImage:image inRect:button.frame];
+        }];
+        
         [button addTarget:self action:@selector(GetFunctionWithfunctionId:)
          forControlEvents:UIControlEventTouchUpInside];
-        button.imageTitleSpace = 6;
-//        button.imageView.contentMode = UIViewContentModeScaleAspectFill;
-//        button.imageView.clipsToBounds = YES;
+        button.imageTitleSpace = 10;
         button.tag = [[[dataDict objectForKey:@"menubarFun"]objectAtIndex:index]integerValue];
         [self addSubview:button];
         
-//        button.imagePosition = SPButtonImagePositionTop;
-        //        [self.btnArray addObject:button];
-        //        [self.tagArray addObject:@(button.tag)];
     }
 }
 
 -(void)GetFunctionWithfunctionId:(SPButton *)spButton{
-    if (self.myBlock) {
-        self.myBlock(spButton);
+    if ([self.delegate respondsToSelector:@selector(loadSendButtonTag:)]) {
+        [self.delegate loadSendButtonTag:spButton.tag];
     }
+//    NSLog(@"--spButton--%ld",spButton.tag);
+//    if (self.Block) {
+//        self.Block(spButton.tag);
+//    }
+//}
 }
 -(UIImage *)ct_imageFromImage:(UIImage *)image inRect:(CGRect)rect{
     CGSize size=image.size;

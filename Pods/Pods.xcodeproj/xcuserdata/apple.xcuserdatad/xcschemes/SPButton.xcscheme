@@ -14,7 +14,7 @@
             buildForArchiving = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "395E4B0016C0E1BD766B12653913CE68"
+               BlueprintIdentifier = "99B188E67372326C24D54F77A36A5CE0"
                BlueprintName = "SPButton"
                ReferencedContainer = "container:Pods.xcodeproj"
                BuildableName = "libSPButton.a">

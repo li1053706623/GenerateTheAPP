@@ -12,6 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface RefreshLoadingView : UIView
 
+@property (nonatomic, strong) UIImageView  *circleView;
+
 @end
 
 NS_ASSUME_NONNULL_END

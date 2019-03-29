@@ -75,7 +75,7 @@
     [self.navigationController.navigationBar navBarAlpha:1 isOpaque:YES];
     [self.navigationController.navigationBar setTitleTextAttributes:@{NSForegroundColorAttributeName:[UIColor colorWithHexString:[NSString stringWithFormat:@"%@",@"#000000"]]}];
     
-    [self GoBackWithString:@"back_black"];
+    [self GoBackWithString:@"navigation_back_hl"];
     
     
     self.title = @"扫描结果";

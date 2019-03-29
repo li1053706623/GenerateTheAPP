@@ -7,28 +7,28 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>京东</string>
+	<string>艾迪儿1</string>
 	<key>CFBundleExecutable</key>
 	<string>AiDiEr</string>
 	<key>CFBundleIcons</key>
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
-			<key>APPIcon</key>
+			<key>UIPrerenderedIcon</key>
+			<false/>
+			<key>appIcon</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>APPIcon</string>
+					<string>appIcon</string>
 				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
 			</dict>
 		</dict>
 		<key>CFBundlePrimaryIcon</key>
 		<dict>
 			<key>CFBundleIconFiles</key>
 			<array>
-				<string>多云</string>
+				<string>appIcon</string>
 			</array>
 			<key>UIPrerenderedIcon</key>
 			<false/>
@@ -46,7 +46,7 @@
 		</dict>
 	</dict>
 	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<string>com.domain.AiDiEr</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -65,17 +65,13 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>QQ420AB297</string>
-			</array>
+			<array/>
 		</dict>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>wxd5a1d936ec1b1cbd</string>
-			</array>
+			<array/>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>

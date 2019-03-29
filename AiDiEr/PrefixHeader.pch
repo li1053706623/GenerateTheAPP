@@ -15,8 +15,7 @@
 #import "ConfigData.h"
 #import <UIImageView+WebCache.h>
 #import <AFNetworking.h>
-#import <ShareSDK/ShareSDK.h>
-#import <ShareSDKUI/ShareSDK+SSUI.h>
+#import <WXApi.h>
 #import <arpa/inet.h>
 #import <ifaddrs.h>
 #import <netdb.h>
@@ -49,7 +48,11 @@
 #import "UIButton+Block.h"
 #import "EwenCopyLabel.h"
 #import "SZKNetWorkUtils.h"
-
+#import "HttpManager.h"
+#import "SDWebImageDownloader.h"
+#import <TencentOpenAPI/TencentOAuth.h>
+#import <TencentOpenAPI/QQApiInterface.h>
+#import <XHWebImageAutoSize.h>
 
 #define QQAppId  @"1107997335"
 #define QQappkey @"uSx8gzm0kLLicnlB"

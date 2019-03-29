@@ -20,13 +20,12 @@ NS_ASSUME_NONNULL_BEGIN
 /**Tabbar高度*/
 -(float)mTabbarHeight;
 ///**功能按钮功能的实现*/
--(void)GetFunctionWithfunctionSender:(SPButton *)sender WithfunctionId:(NSInteger)functionId;
+//-(void)GetFunctionWithfunctionSender:(SPButton *)sender WithfunctionId:(NSInteger)functionId;
 
 -(void)getNavigationBarWithNavigationType:(NSInteger)navigationType;
 
 -(BOOL)isUrl:(NSString *)url;
 
--(void)GetUPBottomView;
 
 -(void)dialPhoneNumber;
 
@@ -41,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 -(void)GoBackWithString:(NSString *)imageStr;
 
--(void)GetUPNavigationView;
+
 @end
 
 NS_ASSUME_NONNULL_END

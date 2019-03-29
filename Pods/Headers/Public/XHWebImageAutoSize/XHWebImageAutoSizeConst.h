@@ -1,0 +1,1 @@
+../../../XHWebImageAutoSize/XHWebImageAutoSize/XHWebImageAutoSizeConst.h

@@ -10,6 +10,8 @@
 @class JYJCommenItem;
 
 @interface JYJProfileCell : UITableViewCell
+
+
 /** item */
 @property (nonatomic, strong) JYJCommenItem *item;
 

@@ -7,9 +7,44 @@
 //
 
 #import "MainViewController.h"
+#import "MainNavigationBarView.h"
+#import "JSMainBottomView.h"
+#import <MessageUI/MessageUI.h>
 
 
-@interface MainViewController ()<WKUIDelegate,WKNavigationDelegate,UIGestureRecognizerDelegate,FSActionSheetDelegate>
+// WKWebView 内存不释放的问题解决
+@interface WeakWebViewScriptMessageDelegate : NSObject<WKScriptMessageHandler>
+
+//WKScriptMessageHandler 这个协议类专门用来处理JavaScript调用原生OC的方法
+@property (nonatomic, weak) id<WKScriptMessageHandler> scriptDelegate;
+
+- (instancetype)initWithDelegate:(id<WKScriptMessageHandler>)scriptDelegate;
+
+@end
+@implementation WeakWebViewScriptMessageDelegate
+
+- (instancetype)initWithDelegate:(id<WKScriptMessageHandler>)scriptDelegate {
+    self = [super init];
+    if (self) {
+        _scriptDelegate = scriptDelegate;
+    }
+    return self;
+}
+
+#pragma mark - WKScriptMessageHandler
+//遵循WKScriptMessageHandler协议，必须实现如下方法，然后把方法向外传递
+//通过接收JS传出消息的name进行捕捉的回调方法
+- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
+    
+    if ([self.scriptDelegate respondsToSelector:@selector(userContentController:didReceiveScriptMessage:)]) {
+        [self.scriptDelegate userContentController:userContentController didReceiveScriptMessage:message];
+    }
+}
+
+@end
+
+#define Interval 4.0f
+@interface MainViewController ()<WKUIDelegate,WKNavigationDelegate,UIGestureRecognizerDelegate,FSActionSheetDelegate,WKScriptMessageHandler,MainBottomViewDelegate,WXApiDelegate,TencentSessionDelegate,MFMessageComposeViewControllerDelegate>
 {
     NSString *_qrCodeString;
 }
@@ -23,7 +58,13 @@
 @property(nonatomic,strong) UIProgressView *myProgressView;
 @property(nonatomic,strong)PopMenu *popMenu;
 @property(nonatomic,strong)RefreshLoadingView *loadingView;
-
+@property(nonatomic,strong) MainNavigationBarView *barView;
+@property(nonatomic,strong)WeakWebViewScriptMessageDelegate *weakScriptMessageDelegate;
+@property(nonatomic,strong)MainBottomView *bottomView;
+@property(nonatomic,strong)JSMainBottomView *JSbottomView;
+@property(nonatomic,strong)TencentOAuth *tencentOAuth;
+//需要将dispatch_source_t myTimer设置为成员变量，不然会立即释放
+@property (nonatomic, strong) dispatch_source_t myTimer;
 @end
 
 @implementation MainViewController
@@ -44,23 +85,39 @@
 - (WKWebView *)webView{
     if (!_webView) {
         //设置网页的配置文件
-        WKWebViewConfiguration * Configuration = [[WKWebViewConfiguration alloc]init];
+          WKWebViewConfiguration *_Configuration  = [[WKWebViewConfiguration alloc]init];
         //允许视频播放
-        Configuration.allowsAirPlayForMediaPlayback = YES;
+        _Configuration.allowsAirPlayForMediaPlayback = YES;
         // 允许在线播放
-        Configuration.allowsInlineMediaPlayback = YES;
+        _Configuration.allowsInlineMediaPlayback = YES;
         // 允许可以与网页交互，选择视图
-        Configuration.selectionGranularity = YES;
+        _Configuration.selectionGranularity = YES;
+        
+        _Configuration.preferences = [[WKPreferences alloc]init];
+        
+        _Configuration.preferences.minimumFontSize = 10;
+        
+        _Configuration.preferences.javaScriptEnabled = YES;
+        
+        _Configuration.preferences.javaScriptCanOpenWindowsAutomatically = NO;
+        
         NSString * JS = [NSString stringWithFormat:@"loadDetail(\"%d\")",70];
         WKUserScript * script = [[WKUserScript alloc]initWithSource:JS injectionTime:WKUserScriptInjectionTimeAtDocumentEnd forMainFrameOnly:YES];
+        
+        //自定义的WKScriptMessageHandler 是为了解决内存不释放的问题
+        _weakScriptMessageDelegate = [[WeakWebViewScriptMessageDelegate alloc] initWithDelegate:self];
+        
         WKUserContentController * UserContentController = [[WKUserContentController alloc]init];
         [UserContentController addUserScript:script];
-        // 是否支持记忆读取
-        Configuration.suppressesIncrementalRendering = YES;
-        // 允许用户更改网页的设置
-        Configuration.userContentController = UserContentController;
         
-        _webView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:Configuration];
+        // 是否支持记忆读取
+        _Configuration.suppressesIncrementalRendering = YES;
+        // 允许用户更改网页的设置
+        _Configuration.userContentController = UserContentController;
+        
+        _Configuration.processPool = [[WKProcessPool alloc]init];
+        
+        _webView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:_Configuration];
         _webView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
         _webView.contentMode = UIViewContentModeRedraw;
         _webView.opaque = YES;
@@ -71,7 +128,7 @@
         _webView.opaque = NO;
         _webView.multipleTouchEnabled = YES;
         [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
-        
+       
     }
     return _webView;
 }
@@ -90,12 +147,12 @@
     if (!_emptyView) {
         __weak typeof(self)weakSelf = self;
         _emptyView = [LYEmptyView emptyActionViewWithImageStr:
-                      [NSString stringWithFormat:@"多云@3x"]
-                                                     titleStr:[NSString stringWithFormat:@"测试"]
-                                                    detailStr:[NSString stringWithFormat:@"没有网络"]
+                      [NSString stringWithFormat:@"no_network"]
+                                                     titleStr:[NSString stringWithFormat:@"网络无法连接"]
+                                                    detailStr:[NSString stringWithFormat:@"世界上最遥远的距离不是生与死,而是没有网络"]
                                                   btnTitleStr:[NSString stringWithFormat:@"重新加载"]
                                                 btnClickBlock:^{
-                                                   [weakSelf reload];
+                                                   [weakSelf reloadView];
                                                 }];
         _emptyView.subViewMargin = 12.f;
         
@@ -114,42 +171,167 @@
     }
     return _emptyView;
 }
+
+-(RefreshLoadingView *)loadingView{
+    if (!_loadingView) {
+        _loadingView = [[RefreshLoadingView alloc]init];
+        _loadingView.backgroundColor = [UIColor blackColor];
+        _loadingView.alpha = 0.9;
+        _loadingView.circleView.image           = [UIImage imageNamed:@"loading"];
+     
+        [self.view addSubview:self.loadingView];
+        [self.loadingView mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.center.mas_equalTo(self.view);
+            make.size.mas_equalTo(CGSizeMake(200, 100));
+        }];
+    }
+    return _loadingView;
+}
+
+-(MainNavigationBarView *)barView{
+    if (!_barView) {
+        MainNavigationBarView *barView = [[MainNavigationBarView alloc]init];
+        barView.frame = CGRectMake(0, 0, SCREEN_WIDTH, [self mNavigationbarHeight]);
+        barView.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"navbarBgc"]]];
+        
+        [UIView setViewBorder:barView color:[UIColor colorWithHexString:@"#C0C0C0"] border:0.5f type:UIViewBorderLineTypeBottom];
+        _barView = barView;
+    }
+    return _barView;
+}
+-(MainBottomView *)bottomView{
+   
+    if (!_bottomView) {
+        _bottomView = [[MainBottomView alloc]init];
+        
+        _bottomView.frame =CGRectMake(0, SCREEN_HEIGHT - [self mTabbarHeight] , SCREEN_WIDTH, [self mTabbarHeight]);
+        
+        _bottomView.delegate = self;
+        if (@available(iOS 11.0, *)) {
+            _bottomView.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"menubarBgc"]]];
+        } else {
+            // Fallback on earlier versions
+        }
+        
+        [UIView setViewBorder:_bottomView color:[UIColor colorWithHexString:@"#C0C0C0"] border:0.5f type:UIViewBorderLineTypeTop];
+    }
+    return _bottomView;
+}
+-(JSMainBottomView *)JSbottomView{
+    
+    if (!_JSbottomView) {
+        _JSbottomView = [[JSMainBottomView alloc]init];
+        
+        _JSbottomView.frame =CGRectMake(0, SCREEN_HEIGHT - [self mTabbarHeight] , SCREEN_WIDTH, [self mTabbarHeight]);
+
+        if (@available(iOS 11.0, *)) {
+            _JSbottomView.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"menubarBgc"]]];
+        } else {
+            // Fallback on earlier versions
+        }
+        
+        [UIView setViewBorder:_bottomView color:[UIColor colorWithHexString:@"#C0C0C0"] border:0.5f type:UIViewBorderLineTypeTop];
+    }
+    return _JSbottomView;
+}
 //---------------------------------------以上为懒加载方法-------------------------------------------
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     
     [self.navigationController setNavigationBarHidden:YES animated:animated];
+    
+    [self.webView.configuration.userContentController addScriptMessageHandler:self.weakScriptMessageDelegate name:@"changeTitleBar"];
+    [self.webView.configuration.userContentController addScriptMessageHandler:self.weakScriptMessageDelegate name:@"changeRefreshImg"];
+    [self.webView.configuration.userContentController addScriptMessageHandler:self.weakScriptMessageDelegate name:@"changeBottomMenu"];
+    [self.webView.configuration.userContentController addScriptMessageHandler:self.weakScriptMessageDelegate name:@"changeLeftMenu"];
+    [self.webView.configuration.userContentController addScriptMessageHandler:self.weakScriptMessageDelegate name:@"changeOrientation"];
+    [self.webView.configuration.userContentController addScriptMessageHandler:self.weakScriptMessageDelegate name:@"saveLoginInfo"];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
     
     [self.navigationController setNavigationBarHidden:NO animated:animated];
+    
+    [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"changeTitleBar"];
+    [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"changeRefreshImg"];
+    [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"changeBottomMenu"];
+    [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"changeLeftMenu"];
+    [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"changeOrientation"];
+    [self.webView.configuration.userContentController removeScriptMessageHandlerForName:@"saveLoginInfo"];
+    
+    //销毁定时器
+    dispatch_source_cancel(self.myTimer);
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    if (![defaults boolForKey:iconfirst]) {
-        
-        [defaults setBool:YES forKey:iconfirst];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1*NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self changeIconBtnClick];
+    
+//    if (![defaults boolForKey:iconfirst]) {
+//
+//        [defaults setBool:YES forKey:iconfirst];
+//        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1*NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//            [self changeIconBtnClick];
+//        });
+//    }
+    
+//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1*NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//        [self changeIconBtnClick];
+//    });
+    
+    //加载等待视图
+//    [self loadLoadingView];
+    
+    //创建一个专门执行timer回调的GCD队列
+    dispatch_queue_t queue = dispatch_queue_create("name", 0);
+    //创建Timer
+    self.myTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
+    //使用dispatch_source_set_timer函数设置timer参数
+    /**
+     * dispatch_source_set_timer(dispatch_source_t source,
+     dispatch_time_t start,
+     uint64_t interval,
+     uint64_t leeway);
+     * start 计时器起始时间，可以通过dispatch_time创建，如果使用DISPATCH_TIME_NOW，则创建后立即执行
+     * interval 计时器间隔时间，可以通过timeInterval * NSEC_PER_SEC来设置，timeInterval为对应的秒数
+     * leeway 这个参数告诉系统我们需要计时器触发的精准程度（所以你可以传入60，告诉系统60秒的误差是可接受的）
+     */
+    dispatch_source_set_timer(self.myTimer, dispatch_time(DISPATCH_TIME_NOW, 0), Interval, 0);
+
+    //设置回调
+    dispatch_source_set_event_handler(self.myTimer, ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+             self.loadingView.hidden = YES;
         });
+
+    });
+    dispatch_resume(self.myTimer);
+    
+   
+    
+    if ([[dataDict objectForKey:@"navbarA"]integerValue] == 0 && [[dataDict objectForKey:@"menuBarRadio"]integerValue] == 0) {
+        //加载webView
+        [self loadWebViewForType:0];
+    }else if ([[dataDict objectForKey:@"navbarA"]integerValue] == 1 && [[dataDict objectForKey:@"menuBarRadio"]integerValue] == 0){
+        //加载导航栏
+        [self GetUPNavigationView];
+        //加载webView
+        [self loadWebViewForType:1];
+    }else if ([[dataDict objectForKey:@"navbarA"]integerValue] == 0 && [[dataDict objectForKey:@"menuBarRadio"]integerValue] == 1){
+        //加载webView
+        [self loadWebViewForType:2];
+        //加载底部菜单栏
+        [self GetUPBottomView];
+    }else{
+        //加载导航栏
+        [self GetUPNavigationView];
+        //加载webView
+        [self loadWebViewForType:3];
+        //加载底部菜单栏
+        [self GetUPBottomView];
     }
-    
-    //加载导航栏
-    [self GetUPNavigationView];
-    
-    //加载底部菜单栏
-    [self GetUPBottomView];
-    
-    //加载webView
-    [self loadWebView];
-    
-    //无网视图
-    [self CreatNoNetView];
-    
+   
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(NetWorkStatesChange:) name:@"isNotReachable" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(NetWorkStatesChange:) name:@"noNotReachable" object:nil];
     
@@ -176,6 +358,7 @@
 #pragma mark--- 无网视图
 -(void)CreatNoNetView{
     
+    self.webView.hidden = YES;
     [self.view addSubview:self.emptyView];
     
 }
@@ -190,26 +373,105 @@
         [self.emptyView setHidden:YES];
     }
 }
-
-#pragma mark---加载webView
--(void)loadWebView{
+-(void)GetUPNavigationView{
+   
+    [self.barView.leftButton sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"navbarLIco"]]] forState:UIControlStateNormal completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+        UIImage *refined = [UIImage imageWithCGImage:image.CGImage scale:3 orientation:image.imageOrientation];
+        [self.barView.leftButton setImage:refined forState:UIControlStateNormal];
+        
+    }];
     
-    CGFloat tabbatHeight;
-    if ([[dataDict objectForKey:@"menuBarRadio"]integerValue] !=0) {
-        tabbatHeight = [self mTabbarHeight];
-    }else{
-        tabbatHeight = 0;
-    }
+    [self.barView.rightButton sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"navRIcon"]]] forState:UIControlStateNormal completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+        UIImage *refined = [UIImage imageWithCGImage:image.CGImage scale:3 orientation:image.imageOrientation];
+        [self.barView.rightButton setImage:refined forState:UIControlStateNormal];
+        
+    }];
+    
+
+    
+
+    /**
+     导航栏左右按钮添加点击事件
+     */
     __weak typeof(self)weakSelf = self;
+    
+    [self.barView.leftButton addAcionBlock:^(UIButton * _Nonnull button) {
+      
+        
+        SPButton *spButton = (SPButton *)button;
+        [weakSelf GetFunctionWithfunctionId:spButton.tag];
+    }];
+    
+    [self.barView.rightButton addAcionBlock:^(UIButton * _Nonnull button) {
+        SPButton *spButton = (SPButton *)button;
+        [weakSelf GetFunctionWithfunctionId:spButton.tag];
+    }];
+    [self.view addSubview:self.barView];
+}
+
+-(void)GetUPBottomView{
+    
+//    _bottomView.Block  = ^(NSInteger buttonTag) {
+//        NSLog(@"----%ld",buttonTag);
+//    };
+     [self.view addSubview:self.bottomView];
+//    if ([[dataDict objectForKey:@"menuBarRadio"]integerValue] !=0) {
+//        __weak __typeof__(self) weakSelf = self;
+//
+//        _bottomView.myBlock = ^(SPButton * _Nonnull button) {
+//            NSLog(@"----%ld",button.tag);
+//            [weakSelf GetFunctionWithfunctionSender:button WithfunctionId:0];
+//        };
+//
+//        [self.view addSubview:self.bottomView];
+//    }
+    
+}
+
+#pragma mark---MainBottomViewDelegate
+
+-(void)loadSendButtonTag:(NSInteger)tag{
+    
+    [self GetFunctionWithfunctionId:tag];
+    
+}
+#pragma mark---加载webView
+-(void)loadWebViewForType:(NSInteger)type{
+    
+    
+//    __weak typeof(self)weakSelf = self;
     __weak WKWebView *webView = self.webView;
     __weak UIScrollView *scrollView = webView.scrollView;
     [self.view addSubview:self.webView];
+//    NSString *path = [[NSBundle mainBundle] pathForResource:@"javascript.html" ofType:nil];
+//    NSString *htmlString = [[NSString alloc]initWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+//    [_webView loadHTMLString:htmlString baseURL:[NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]]];
     [self.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString: [NSString stringWithFormat:@"%@",[dataDict objectForKey:@"appUrl"]]]]];
-    [webView mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.top.mas_equalTo(self.view).mas_offset([weakSelf mNavigationbarHeight] + 0.5);
-        make.leading.trailing.mas_equalTo(self.view);
-        make.bottom.equalTo(self.view).mas_equalTo(-tabbatHeight);
-    }];
+    
+    if (type == 0) { // 无导航栏无菜单栏
+        [webView mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.top.mas_equalTo(self.view).mas_offset([self mStatusbarHeight]);
+            make.leading.bottom.trailing.mas_equalTo(self.view);
+        }];
+    }else if (type == 1){ // 有导航栏无菜单栏
+        [webView mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.top.mas_equalTo(self.view).mas_offset([self mNavigationbarHeight] + 0.5);
+            make.leading.trailing.bottom.mas_equalTo(self.view);
+        }];
+    }else if (type == 2){ // 无导航栏有菜单栏
+        [webView mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.top.mas_equalTo(self.view).mas_offset([self mStatusbarHeight]);
+            make.leading.trailing.mas_equalTo(self.view);
+            make.bottom.mas_equalTo(self.view).mas_offset(-[self mTabbarHeight]);
+        }];
+    }else{ // 有导航栏有菜单栏
+        [webView mas_makeConstraints:^(MASConstraintMaker *make) {
+             make.top.mas_equalTo(self.view).mas_offset([self mNavigationbarHeight] + 0.5);
+             make.leading.trailing.mas_equalTo(self.view);
+             make.bottom.mas_equalTo(self.view).mas_offset(-[self mTabbarHeight]);
+        }];
+    }
+    
     
     //    [self.webView evaluateJavaScript:@"document.documentElement.style.webkitTouchCallout='none';"];
     
@@ -264,7 +526,7 @@
     //    __weak typeof(self)weakSelf = self;
     [webView evaluateJavaScript:imgJS completionHandler:^(id _Nullable imgURL, NSError * _Nullable error) {
         
-        NSLog(@"-----%@",imgURL);
+//        NSLog(@"-----%@",imgURL);
         if (imgURL) {
             NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:imgURL]];
             UIImage *image = [UIImage imageWithData:data];
@@ -296,10 +558,10 @@
     if (features.count >= 1) {
         CIQRCodeFeature *feature = [features objectAtIndex:0];
         _qrCodeString = [feature.messageString copy];
-        NSLog(@"二维码信息:%@", _qrCodeString);
+//        NSLog(@"二维码信息:%@", _qrCodeString);
         return YES;
     } else {
-        NSLog(@"无可识别的二维码");
+//        NSLog(@"无可识别的二维码");
         return NO;
     }
 }
@@ -350,33 +612,31 @@
 #pragma mark---更换Icon图标
 - (void)changeIconBtnClick{
     
-    
-    
-    NSString *iconName = [NSString stringWithFormat:@"%@",@"APPIcon"];
-    //    must be used from main thread only
+    NSString *iconName = @"appIcon";
     if (@available(iOS 10.3, *)) {
-        if (![[UIApplication sharedApplication] supportsAlternateIcons]) {
-            //不支持动态更换icon
+        
+        if (![[UIApplication sharedApplication]supportsAlternateIcons]) {
+             //不支持动态更换icon
             return;
         }
-    } else {
-        // Fallback on earlier versions
-    }
-    
-    if ([iconName isEqualToString:@""] || !iconName) {
-        iconName = nil;
-    }
-    if (@available(iOS 10.3, *)) {
+        if ([iconName isEqualToString:@""] || !iconName) {
+            iconName = nil;
+        }
+        
         [[UIApplication sharedApplication] setAlternateIconName:iconName completionHandler:^(NSError * _Nullable error) {
+           
             if (error) {
-                NSLog(@"更换app图标发生错误了 ： %@",error.localizedDescription);
+                 NSLog(@"更换app图标发生错误了 ： %@",error.localizedDescription);
             }else{
                 NSLog(@"更换app图标成功");
             }
+            
         }];
-    } else {
-        // Fallback on earlier versions
+        
+    }else{
+        
     }
+    
 }
 
 #pragma mark - 网络状态发生变化通知方法
@@ -384,16 +644,19 @@
     
     int networkState = 0;
     if (networkState == [notification.userInfo[@"status"]intValue]) {
+        //无网视图
+        [self CreatNoNetView];
         //        NSLog(@"----没有网络");
         [self.emptyView setHidden:NO];
     }else{
         //         NSLog(@"-----有网络");
-        //         [self.emptyView setHidden:YES];
+//        [self reloadView];
     }
     
 }
 #pragma mark---加载URL
--(void)reload{
+-(void)reloadView{
+    self.webView.hidden = NO;
     NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"appUrl"]]] ;
     [self.webView loadRequest:[NSURLRequest requestWithURL:url]];
 }
@@ -415,7 +678,7 @@
         }];
         
     }else if (velocity > 5) {
-        NSLog(@"向下拖动，显示导航栏");
+//        NSLog(@"向下拖动，显示导航栏");
         [self.navigationController setNavigationBarHidden:NO animated:YES];
         [UIView animateWithDuration:0.25 animations:^{
             self.webView.frame = CGRectMake(0, [self mNavigationbarHeight], SCREEN_WIDTH, SCREEN_HEIGHT - [self mNavigationbarHeight] - [self mTabbarHeight]);
@@ -428,7 +691,7 @@
     }else if(velocity == 0){
         
         if (self.webView.scrollView.contentOffset.y == 0) {
-            
+//
             NSLog(@"7777777777777777");
         }
         NSLog(@"停止拖拽");
@@ -436,13 +699,13 @@
     }
 }
 /**功能按钮功能的实现*/
--(void)GetFunctionWithfunctionSender:(SPButton *)sender WithfunctionId:(NSInteger)functionId{
-    NSInteger functionTag;
-    if (sender.tag == 0) {
-        functionTag = functionId;
-    }else{
-        functionTag = sender.tag;
-    }
+-(void)GetFunctionWithfunctionId:(NSInteger)functionId{
+   
+//    if (sender.tag == 0) {
+//        functionTag = functionId;
+//    }else{
+//        functionTag = sender.tag;
+//    }
     
     
     /**
@@ -462,7 +725,7 @@
      */
     
     
-    switch (functionTag) {
+    switch (functionId) {
         case 1:
             [self mainloadshare];
             break;
@@ -473,6 +736,7 @@
         {
             if (self.webView.canGoForward) {
                 [self.webView goForward];
+                [YJProgressHUD showMessage:@"马不停蹄的往前走，已经前进了一大步耶！" inView:self.view afterDelayTime:2];
             }
         }
             break;
@@ -481,11 +745,15 @@
         {
             if (self.webView.canGoBack) {
                 [self.webView goBack];
+                [YJProgressHUD showMessage:@"退一步海阔天空，您已经后退成功了耶！" inView:self.view afterDelayTime:2];
             }
         }
             break;
         case 5:
+        {
             [self dialPhoneNumber];
+        }
+            
             break;
         case 6:
             if (@available(iOS 10.0, *)) {
@@ -524,6 +792,7 @@
         case 12:
         {
             [self.webView reloadFromOrigin];
+            [YJProgressHUD showMessage:@"报告主人，您已完美回到主页！" inView:self.view afterDelayTime:2];
         }
             break;
             
@@ -540,23 +809,23 @@
 
 -(void)mainloadshare{
     
-    //    NSArray *imageArray = @[@"QQ",@"QQZONE",@"WeChat",@"WeChatFirend",@"SMS"];
-    //    NSArray *titleArray = @[@"QQ",@"QQ空间",@"微信好友",@"朋友圈",@"短信"];
+//        NSArray *imageArray = @[@"sns_icon_24",@"QQZONE",@"WeChat",@"WeChatFirend",@"SMS"];
+//        NSArray *titleArray = @[@"QQ",@"QQ空间",@"微信好友",@"朋友圈",@"短信"];
     
     NSMutableArray *items = [[NSMutableArray alloc] initWithCapacity:3];
-    MenuItem *menuItem = [MenuItem itemWithTitle:@"QQ好友" iconName:@"QQ"];
+    MenuItem *menuItem = [MenuItem itemWithTitle:@"QQ好友" iconName:@"sns_icon_24"];
     [items addObject:menuItem];
     
-    menuItem = [MenuItem itemWithTitle:@"QQ空间" iconName:@"QQZONE"];
+    menuItem = [MenuItem itemWithTitle:@"QQ空间" iconName:@"sns_icon_6"];
     [items addObject:menuItem];
     
-    menuItem = [MenuItem itemWithTitle:@"微信好友" iconName:@"WeChat"];
+    menuItem = [MenuItem itemWithTitle:@"微信好友" iconName:@"sns_icon_22"];
     [items addObject:menuItem];
     
-    menuItem = [MenuItem itemWithTitle:@"朋友圈" iconName:@"WeChatFirend"];
+    menuItem = [MenuItem itemWithTitle:@"朋友圈" iconName:@"sns_icon_23"];
     [items addObject:menuItem];
     
-    menuItem = [MenuItem itemWithTitle:@"短信" iconName:@"SMS"];
+    menuItem = [MenuItem itemWithTitle:@"短信" iconName:@"sns_icon_19"];
     [items addObject:menuItem];
     
     if (!_popMenu) {
@@ -578,122 +847,115 @@
 
 -(void)GobackMain{
     
-    self.loadingView = [[RefreshLoadingView alloc]init];
-    self.loadingView.backgroundColor = [UIColor blackColor];
-    self.loadingView.alpha = 0.9;
-    self.loadingView.hidden = NO;
-    [self.view addSubview:self.loadingView];
-    [self.loadingView mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.center.mas_equalTo(self.view);
-        make.size.mas_equalTo(CGSizeMake(200, 100));
-    }];
+   
+       self.loadingView.hidden = NO;
     
-    
-    
-    //    self.threeDot = [[FeThreeDotGlow alloc]initWithView:self.view blur:NO];
-    //    self.threeDot.alpha = 0.9;
-    //    [self.threeDot setHidden:NO];
-    //    [self.view addSubview:self.threeDot];
-    //    [self.threeDot show];
     [self.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString: [NSString stringWithFormat:@"%@",[dataDict objectForKey:@"appUrl"]]]]];
 }
 
 
 - (void)YBJShareViewDidSelecteBtnWithBtnText:(NSString *)btText{
     
-    if ([btText isEqualToString:@"QQ好友"]) {
-        if ([[dataDict objectForKey:@"QQradio"]integerValue] == 0) {
-            [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
+    if ([btText isEqualToString:@"QQ好友"] || [btText isEqualToString:@"QQ空间"]) {
+        if (![TencentOAuth iphoneQQInstalled]) {
+            [YJProgressHUD showMessage:@"请移步App Store去下载腾讯QQ客户端" inView:self.view afterDelayTime:1];
+            
         }else{
-            if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"mqq://"]]) {
-                [self showShareSSDKPlatformType:SSDKPlatformSubTypeQQFriend];
+            if ([[dataDict objectForKey:@"QQradio"]integerValue] == 0) {
+                [YJProgressHUD showMessage:@"您在封装应用的时候未在第三方配置QQ分享功能" inView:self.view afterDelayTime:3];
             }else{
-                [self showAlertViewContrllerWithMessage:@"您未安装QQ,暂无法分享"];
+                self.tencentOAuth = [[TencentOAuth alloc] initWithAppId:[dataDict objectForKey:@"qqId"]
+                                                            andDelegate:self];
+                QQApiNewsObject *newsObj = [QQApiNewsObject objectWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareURL"]]] title:[dataDict objectForKey:@"shareTitle"] description:[dataDict objectForKey:@"shareContent"] previewImageURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareImage"]]]];
+                SendMessageToQQReq *req = [SendMessageToQQReq reqWithContent:newsObj];
+                if ([btText isEqualToString:@"QQ好友"]) {
+                    [QQApiInterface sendReq:req];
+                }
+                if ([btText isEqualToString:@"QQ空间"]) {
+                    [QQApiInterface SendReqToQZone:req];
+                }
+            }
+            
+            
+        }
+    }
+    
+    
+    if ([btText isEqualToString:@"微信好友"] || [btText isEqualToString:@"朋友圈"]) {
+        if (![WXApi isWXAppInstalled] && ![WXApi isWXAppSupportApi]) {
+             [YJProgressHUD showMessage:@"请移步App Store去下载腾讯微信客户端" inView:self.view afterDelayTime:1];
+        }else{
+            if ([[dataDict objectForKey:@"wechatRadio"]integerValue] == 0) {
+                 [YJProgressHUD showMessage:@"您在封装应用的时候未在第三方配置微信分享功能" inView:self.view afterDelayTime:3];
+            }else{
+                [[SDWebImageDownloader sharedDownloader]downloadImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareImage"]]] options:SDWebImageDownloaderProgressiveDownload progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
+                    
+                    if (image) {
+                        SendMessageToWXReq *req = [[SendMessageToWXReq alloc] init];
+                        WXMediaMessage *message = [WXMediaMessage message];
+                        message.title = [dataDict objectForKey:@"shareTitle"];
+                        message.description = [dataDict objectForKey:@"shareContent"];
+                        [message setThumbImage:image];
+                        
+                        req.message = message;
+                        
+                        WXAppExtendObject *ext = [WXAppExtendObject object];
+                        ext.url = [NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareURL"]];
+//                        ext.extInfo = @"Hi 天气";
+                        message.mediaObject = ext;
+                        if ([btText isEqualToString:@"微信好友"]) {
+                            req.scene = WXSceneSession;
+                        };
+                        if ([btText isEqualToString:@"朋友圈"]) {
+                            req.scene = WXSceneTimeline;
+                        }
+                        [WXApi sendReq:req];
+                    }
+                    
+                }];
             }
             
         }
-        
-    }else if ([btText isEqualToString:@"QQ空间"]){
-        if ([[dataDict objectForKey:@"QQradio"]integerValue] == 0) {
-            [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
-        }else{
-            if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"mqq://"]]) {
-                [self showShareSSDKPlatformType:SSDKPlatformSubTypeQZone];
+    }
+    
+    if ([btText isEqualToString:@"短信"]) {
+        if ([MFMessageComposeViewController canSendText]) {
+            if ([[dataDict objectForKey:@"messages"]integerValue] == 0) {
+                [YJProgressHUD showMessage:@"您在封装应用的时候未在第三方配置短信分享功能" inView:self.view afterDelayTime:3];
             }else{
-                [self showAlertViewContrllerWithMessage:@"您未安装QQ,暂无法分享"];
+                MFMessageComposeViewController *messsageVC = [[MFMessageComposeViewController alloc]init];
+                messsageVC.body = [dataDict objectForKey:@"shareContent"];
+                messsageVC.messageComposeDelegate = self;
+//                [messsageVC addAttachmentURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[dataDict objectForKey:@"shareImage"]]] withAlternateFilename:@"shareImage"];
+                [self presentViewController:messsageVC animated:YES completion:nil];
             }
-            
-        }
-    }else if ([btText isEqualToString:@"微信好友"]){
-        if ([[dataDict objectForKey:@"wechatRadio"]integerValue] == 0) {
-            [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
+           
         }else{
-            if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"wechat://"]]) {
-                [self showShareSSDKPlatformType:SSDKPlatformSubTypeWechatSession];
-            }else{
-                [self showAlertViewContrllerWithMessage:@"您未安装微信,暂无法分享"];
-            }
-            
+            [YJProgressHUD showMessage:@"该设备不支持短信分享" inView:self.view afterDelayTime:1];
         }
-    }else if ([btText isEqualToString:@"朋友圈"]){
-        if ([[dataDict objectForKey:@"wechatRadio"]integerValue] == 0) {
-            [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
-        }else{
-            if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"wechat://"]]) {
-                [self showShareSSDKPlatformType:SSDKPlatformSubTypeWechatTimeline];
-            }else{
-                [self showAlertViewContrllerWithMessage:@"您未安装微信,暂无法分享"];
-            }
-            
-        }
-    }else if ([btText isEqualToString:@"短信"]){
-        if ([[dataDict objectForKey:@"messages"]integerValue] == 0) {
-            [self showAlertViewContrllerWithMessage:@"您没有开启此功能"];
-        }else{
-            [self showShareSSDKPlatformType:SSDKPlatformTypeSMS];
-        }
-    }else{
+      
         
     }
-}
-
--(void)showShareSSDKPlatformType:(SSDKPlatformType)type{
     
-    NSMutableDictionary *shareParams = [NSMutableDictionary dictionary];
-    NSArray* imageArray = @[[UIImage imageNamed:@"shareImg.png"]];
-    [shareParams SSDKSetupShareParamsByText:@"分享内容"
-                                     images:imageArray
-                                        url:[NSURL URLWithString:@"http://mob.com"]
-                                      title:@"分享标题"
-                                       type:SSDKContentTypeAuto];
-    
-    [ShareSDK share:type parameters:shareParams onStateChanged:^(SSDKResponseState state, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error) {
-        switch (state) {
-            case SSDKResponseStateSuccess:
-            {
-                [YJProgressHUD showMessage:@"分享成功" inView:self.view];
-            }
-                
-                break;
-                
-            case SSDKResponseStateFail:
-            {
-                [YJProgressHUD showMessage:[NSString stringWithFormat:@"分享失败:%@",error.description] inView:self.view];
-            }
-                break;
-                
-            case SSDKResponseStateCancel:
-            {
-                [YJProgressHUD showMessage:@"分享取消" inView:self.view];
-            }
-                
-                break;
-            default:
-                break;
-        }
-    }];
 }
-
+#pragma mark---MFMessageComposeViewConreoller
+-(void)messageComposeViewController:(MFMessageComposeViewController *)controller didFinishWithResult:(MessageComposeResult)result{
+    [self dismissViewControllerAnimated:YES completion:nil];
+    switch (result) {
+        case MessageComposeResultCancelled:
+            [YJProgressHUD showMessage:@"取消分享" inView:self.view afterDelayTime:1];
+            break;
+        case MessageComposeResultSent:
+            [YJProgressHUD showMessage:@"分享成功" inView:self.view afterDelayTime:1];
+            break;
+        case MessageComposeResultFailed:
+            [YJProgressHUD showMessage:@"分享失败" inView:self.view afterDelayTime:1];
+            break;
+        default:
+            break;
+    }
+    
+}
 #pragma mark - WKNavigationDelegate method
 // 如果不添加这个，那么wkwebview跳转不了AppStore
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler{
@@ -733,6 +995,7 @@
     [self.webView.scrollView.mj_header endRefreshing];
     [self.loadingView setHidden:YES];
     [self.emptyView setHidden:YES];
+    [YJProgressHUD showMessage:@"报告主人，当前页面已刷新完毕！" inView:self.view];
 }
 #pragma mark - event response
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
@@ -757,6 +1020,62 @@
     }
 }
 
+#pragma mark - WKScriptMessageHandler
+- (void)userContentController:(WKUserContentController*)userContentController didReceiveScriptMessage:(WKScriptMessage*)message{
+    
+     //用message.body获得JS传出的参数体
+     __weak typeof(self)weakSelf = self;
+    if ([message.name isEqualToString:@"changeTitleBar"]) {
+//         NSLog(@"1name:%@\\\\n 1body:%@\\\\n ",message.name,message.body);
+        NSDictionary *bodyDict = [(NSDictionary *)message.body objectForKey:@"body"];
+        self.barView.backgroundColor = [UIColor colorWithHexString:[NSString stringWithFormat:@"%@",[bodyDict objectForKey:@"navbarBgc"]]];
+        [self.barView.leftButton sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[bodyDict objectForKey:@"navbarLIco"]]] forState:UIControlStateNormal];
+        
+        [self.barView.rightButton sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[bodyDict objectForKey:@"navRIcon"]]] forState:UIControlStateNormal];
+        
+        self.barView.leftButton.tag = [[bodyDict objectForKey:@"navbarSelect"]integerValue];
+        
+        self.barView.rightButton.tag = [[bodyDict objectForKey:@"navbarRsele"]integerValue];
+        [self.barView.leftButton addAcionBlock:^(UIButton * _Nonnull button) {
+            [weakSelf GetFunctionWithfunctionId: weakSelf.barView.leftButton.tag];
+        }];
+        [self.barView.rightButton addAcionBlock:^(UIButton * _Nonnull button) {
+            [weakSelf GetFunctionWithfunctionId:weakSelf.barView.rightButton.tag];
+        }];
+        
+    }else if ([message.name isEqualToString:@"changeRefreshImg"]){
+//         NSLog(@"2name:%@\\\\n 2body:%@\\\\n ",message.name,message.body);
+
+        [self.loadingView.circleView sd_setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@",[(NSDictionary *)message.body objectForKey:@"body"]]]];
+        
+    }else if ([message.name isEqualToString:@"changeBottomMenu"]){
+        
+        [self.bottomView removeFromSuperview];
+        [self.view addSubview:self.JSbottomView];
+       
+        NSDictionary *bodyDict = [(NSDictionary *)message.body objectForKey:@"body"];
+//        NSLog(@"3name:%@\\\\n 3body:%@\\\\n 3menubarFun:%@\n",message.name,message.body,[bodyDict objectForKey:@"menubarFun"]);
+        self.JSbottomView.myBlock = ^(SPButton * _Nonnull button) {
+            [weakSelf GetFunctionWithfunctionId:button.tag];
+        };
+        [self.JSbottomView loadDefaultSettingWithMenuFun:[bodyDict objectForKey:@"menubarFun"] WithMenName:[bodyDict objectForKey:@"menName"] WithMenuTitleColorNormal:[bodyDict objectForKey:@"menuTitleColorNormal"] WithMenuTitleColorSelect:[bodyDict objectForKey:@"menuTitleColorSelect"] WithMenuDefauinput:[bodyDict objectForKey:@"menuDefauinput"] ];
+
+        
+    }else if ([message.name isEqualToString:@"changeLeftMenu"]){
+//         NSLog(@"4name:%@\\\\n 4body:%@\\\\n ",message.name,message.body);
+        
+        
+    }else if ([message.name isEqualToString:@"changeOrientation"]){
+//         NSLog(@"5name:%@\\\\n 5body:%@\\\\n ",message.name,message.body);
+    }else if ([message.name isEqualToString:@"saveLoginInfo"]){
+//         NSLog(@"6name:%@\\\\n 6body:%@\\\\n ",message.name,message.body);
+    }
+   
+}
+-(void)loadLoadingView{
+    
+       self.loadingView.hidden = NO;
+}
 -(void)dealloc{
     [[NSNotificationCenter defaultCenter]removeObserver:self];
     [self.webView removeObserver:self forKeyPath:@"estimatedProgress"];
