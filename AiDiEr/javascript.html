@@ -2,59 +2,177 @@
 <html>
 <head>
     <meta charset="UTF-8"/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"/>
 </head>
 <body>
 
 <p>测试Android WebView 与 Javascript 交互</p>
-<input id="name_input" class="inputStyle" type="text" value="12345555"/>
-<!--<a class="rect" onclick="sendInfoToJava()">JS调用Java</a>-->
-<img src="">
+name:<input id="name" class="inputStyle" type="text" value="wll"
+            style="height:25px; font-size:22px;"/>
+<br>
+password:<input id="password" class="inputStyle" type="text" value="12345555"
+                style="height:25px; font-size:22px;"/>
+<br>
+<input type="button" value="登录" style="width: 85px; height:45px;" onclick="saveLoginInfo()"/>
+
+<br>
+得到缓存：
+<br>
+name:<input id="name1" class="inputStyle" type="text" style="height:25px; font-size:22px;"/>
+<br>
+password:<input id="password1" class="inputStyle" type="text" style="height:25px; font-size:22px;"/>
+<br>
+
+<input type="button" value="获取登录信息" style="width: 120px; height: 60px;" onclick="getAndroidLoginInfo()"/>
+
+
+<br>
+得到缓存：
+<br>
+name:<input id="name2" class="inputStyle" type="text" style="height:25px; font-size:22px;"/>
+<br>
+password:<input id="password2" class="inputStyle" type="text" style="height:25px; font-size:22px;"/>
+<br>
+
+
 <script>
 window.onload = initInfoToJava();
 function initInfoToJava(){
-changeTitleBar();
+changeNavigationBar();
 changeRefreshImg();
 changeBottomMenu();
 changeLeftMenu();
 changeOrientation();
-saveLoginInfo();
   }
+
     //调用android程序中的方法，并传递参数   修改titlebar
-    function changeTitleBar(){
-  var leftText={"navbarBgc":"#FFFFFF",  "navbarSelect":10, "navbarLIco":"http://test.qingdabao.com/static/home/images/icon/logo/logo10.png",  "navbarRsele":2, "navRIcon":"https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48"};
-  window.webkit.messageHandlers.changeTitleBar.postMessage({body:leftText});
-  }
-     //修改下拉刷新的bg
+    function changeNavigationBar(){
+    var titleBar={"navbarBgc": "#0096ff","navLUrl": "","navLpullname": "sinaweibo://","navRIcon": "about_white","navRUrl": "https://weibo.com/","navRpullname": "","navbarLIco": "add_white","navbarRsele": 7,"navbarSelect": 14};
+
+   var u = navigator.userAgent, app = navigator.appVersion;
+    var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isAndroid) {
+       //这个是安卓操作系统
+          window.AndroidWebView.changeNavigationBar(JSON.stringify(titleBar));
+    }
+    if (isIOS) {
+　　　　//这个是ios操作系统
+   window.webkit.messageHandlers.changeTitleBar.postMessage({body:titleBar});
+    }
+}
+
+   //修改下拉刷新的bg
     function changeRefreshImg(){
     var refreshImg="http://test.qingdabao.com/static/home/images/icon/logo/logo10.png";
+       var u = navigator.userAgent, app = navigator.appVersion;
+    var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isAndroid) {
+       //这个是安卓操作系统
+        window.AndroidWebView.changeRefreshImg(refreshImg);
+    }
+    if (isIOS) {
+　　　　//这个是ios操作系统
     window.webkit.messageHandlers.changeRefreshImg.postMessage({body:refreshImg});
-  }
+    }
 
+  }
      //修改底部菜单的按钮
     function changeBottomMenu(){
-    var bottomlist={"menubarBgc": "#000000", "menubarStyle": 0, "menubarFun": [9, 10,1,11], "menName": ["清缓存","左侧栏","分享","扫一扫"], "menuDefauinput": ["https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "http://test.qingdabao.com/static/home/images/icon/logo/logo10.png", "https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "http://test.qingdabao.com/static/home/images/icon/logo/logo10.png"],"menuTitleColorNormal": "#808080", "menuTitleColorSelect": "#000000"};
+    var bottomlist={"menName": ["刷新","分享","拉爱奇艺","拉美团","打开微博"],"menuDefauinput": ["homepage_white",	"http://appimgs.170130.com/nosjjuCF4rYzGTMQbGZXDHegDvFDpQxx.png","scan_white",	"http://appimgs.170130.com/kZAwe25CK2zDjP7rkgxif68RHBzHQgN2.png",	"http://appimgs.170130.com/XKsTKC5S46xpTFpS3gA4fx7hgfghytMv.png"	],	"menubarFont": "#000000","menuUrl": [	"",	"",	"","",	"https://weibo.com/"],"menubarBgc": "#0096ff",	"menubarFun": [	2,	1,	14,	14,	7],"menupullname": [	"",	"",	"qiyi-iphone://","imeituan://"]};
+    var u = navigator.userAgent, app = navigator.appVersion;
+    var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isAndroid) {
+       //这个是安卓操作系统
+         window.AndroidWebView.changeBottomMenu(JSON.stringify(bottomlist));
+    }
+    if (isIOS) {
+　　　　//这个是ios操作系统
     window.webkit.messageHandlers.changeBottomMenu.postMessage({body:bottomlist});
-  }
-
-
-     //修改左菜单的按钮
+    }
+ }
+      //修改左菜单的按钮
     function changeLeftMenu(){
-    var sildelist={"slidebarAPI": 1, "slideBgc": "#808080", "slideType": 0, "slidefun": [9,7,8,1], "slibarName": ["清缓存",  "打开网页", "关于我们","分享"], "slideIcon": ["https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48", "https://www.easyicon.net/api/resizeApi.php?id=1230534&size=48","http://test.qingdabao.com/static/home/images/icon/logo/logo10.png"]};
-    window.webkit.messageHandlers.changeLeftMenu.postMessage({body:sildelist});
-  }
-
+    var leftlist={	"slibarName": ["关于我们", "清除缓存", "扫一扫", "拉拼多多", "打开百度"],	"slideBgc": "#0096ff",	"slideIcon": [	"shoppingcart_white",	"http://appimgs.170130.com/4MMmmsuQZWbnBYDJ3yW2JpjujjJTr3zh.png",	"share_white",	"http://appimgs.170130.com/QcW3GPPN4kZFPdSKMAW8uhC5i2dXvDvT.png",	"http://appimgs.170130.com/fWAPTJaPj6xTWDuFzgviMYvDDQJwC5aJ.png"	],"slideTextColor": "#ffffff","slideUrl": ["", "", "", "", "https://www.baidu.com"],"slidefun": [8, 9, 11, 14, 7],"slidepullname": ["", "", "", "pinduoduo://"]};    var u = navigator.userAgent, app = navigator.appVersion;
+    var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isAndroid) {
+       //这个是安卓操作系统
+           window.AndroidWebView.changeLeftMenu(JSON.stringify(leftlist));
+    }
+    if (isIOS) {
+　　　　//这个是ios操作系统
+    window.webkit.messageHandlers.changeLeftMenu.postMessage({body:leftlist});
+    }
+}
      //设置横竖屏开关
     function changeOrientation(){
     var orientation=1;
+     var u = navigator.userAgent, app = navigator.appVersion;
+    var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isAndroid) {
+       //这个是安卓操作系统
+          window.AndroidWebView.changeOrientation(orientation);
+    }
+    if (isIOS) {
+　　　　//这个是ios操作系统
     window.webkit.messageHandlers.changeOrientation.postMessage({body:orientation});
-
-  }
+    }
+}
 
    function saveLoginInfo(){
-       var saveLoginInfo = {"name":"wll","password":"123456"};
-    window.webkit.messageHandlers.saveLoginInfo.postMessage({body:saveLoginInfo});
-    
-  }
+   alert('保存登录信息');
+    var name = document.getElementById("name").value;
+    var pwd = document.getElementById("password").value;
+  var loginInfo = {"name":name,"password": pwd};
+   var u = navigator.userAgent, app = navigator.appVersion;
+    var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isAndroid) {
+       //这个是安卓操作系统
+    window.AndroidWebView.saveLoginInfo(loginInfo);
+    }
+    if (isIOS) {
+　　　　//这个是ios操作系统
+    window.webkit.messageHandlers.saveLoginInfo.postMessage({body:loginInfo });
+}
+ }
+                          //从app缓存中获取保存的登录信息
+                          function getAndroidLoginInfo(){
+                          
+                          
+                          var name;
+                          var password;
+                          alert('获取登录信息');
+                          var u = navigator.userAgent, app = navigator.appVersion;
+                          var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+                          var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+                    if (isAndroid) {
+                                                //这个是安卓操作系统
+                        var info=window.AndroidWebView.getLoginInfo();
+                        var jsObject = JSON.parse(info);    //转换为json对象
+                        name = jsObject.name;
+                        password= jsObject.password;
+                        //在此可设置值
+                    }
+                    if (isIOS) {
+                        　　　 window.webkit.messageHandlers.getAndroidLoginInfo.postMessage(null);
+                                               
+                        }
+                                                
+                }
+                                                
+                    function getiOSLoginInfo(username,Password) {
+                                                
+                       document.getElementById("name1").value = username;
+                        document.getElementById("password1").value = Password;
+                }
+
+
 
 </script>
 </body>
